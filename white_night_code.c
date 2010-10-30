@@ -328,7 +328,7 @@ void check_all_ir_buffers_for_data(void) {
 
         if (IRBUF_CUR) {
 
-            //FLASH_BLUE;
+            //FLASH_GREEN;
 
             //flash_ircode(irparams.irbuf[j]);
             
@@ -358,7 +358,7 @@ void check_all_ir_buffers_for_data(void) {
 
                 // have we seen them before?
                 // if not, record that we have
-                if ( eeprom_read_byte((uint8_t*)recd_id) == 0 ) {
+                if ( eeprom_read_byte((uint8_t*)recd_id) != 1 ) {
                     eeprom_write_byte((uint8_t*)recd_id, 1);
                 }
 
@@ -375,12 +375,9 @@ void check_all_ir_buffers_for_data(void) {
                         my_mode = AM_INFECTED;
                         bit_by_zombie_count = 0;
                         time_infected = main_loop_counter;
-                        FLASH_RED;
                     } else {
                         bit_by_zombie_count++;
-                        FLASH_BLUE;
                     }
-                    break; // only get bitten by one zombie in a pack 
 
                 } else if (recd_mode == SEND_ALL_EEPROM) {
                     continue; // ignore them
@@ -395,9 +392,10 @@ void check_all_ir_buffers_for_data(void) {
 
             }
 
-            irparams.irbuf[j] = 0; // processed this code, delete it.
+            IRBUF_CUR = 0; // processed this code, delete it.
 
         }
+        //FLASH_BLUE;
     }
 
 }
@@ -419,13 +417,14 @@ void update_my_state(void) {
 
     } else if ( my_mode == CYCLE_COLOURS_SEEN ) {
         // read next valid id from EEPROM
-        for ( uint8_t i = curr_colour + 1; i<128; i++ ) {
+        //FLASH_GREEN;
+        for ( uint8_t i = (curr_colour + 1); i<128; i++ ) {
             uint8_t seen = eeprom_read_byte((uint8_t*)i);
-            FLASH_GREEN;
             if ( seen == 1 ) {
-                flash_byte(curr_colour);
+                //FLASH_RED;
+                //flash_byte(curr_colour);
                 last_colour = curr_colour;
-                curr_colour = seen & displayRGBMask; // in case ID is >= 64
+                curr_colour = i & displayRGBMask; // in case ID is >= 64
                 break;
             }
         }
@@ -459,7 +458,7 @@ int main(void) {
     sei();                // enable microcontroller interrupts
 
     long my_code = 0;
-
+    eeprom_write_byte((uint8_t*) MY_BADGE_ID, 1); // ensure we're in our own colour db
 
     while (1) {
 
@@ -469,7 +468,7 @@ int main(void) {
 
         disable_ir_recving();
 
-#ifndef DISABLE_IR_SENDING_CODE
+#ifndef DISABLE_EEPROM_SENDING_CODE
         if ( my_mode == SEND_ALL_EEPROM ) {
             for ( uint8_t i = 0; i < 128; i++ ) {
                 uint8_t has_seen = eeprom_read_byte((uint8_t*)i);
@@ -480,14 +479,16 @@ int main(void) {
             }
             my_mode = CYCLE_COLOURS_SEEN;
         }
+#endif
 
+#ifndef DISABLE_IR_SENDING_CODE
         for (uint8_t i=0; i<NUM_SENDS; i++) {
            // transmit our identity, without interruption
            sendNEC(my_code);  // takes ~68ms
            //delay_ten_us(3280); // delay for 32ms
         }
-
 #endif
+
         enableIRIn();
         enable_ir_recving();
 

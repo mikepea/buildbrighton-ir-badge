@@ -5,9 +5,10 @@
 #define MY_CODE_HEADER  (long)(OUR_COMMON_CODE)<<24 | (long)(MY_BADGE_ID) <<16
 
 // debugging flags
-#define TURN_OFF_PWM_COLOUR 1
+//#define TURN_OFF_PWM_COLOUR 1
 #define DISABLE_IR_SENDING_CODE 1
-#define ENABLE_FLASH_BYTE_CODE 1
+#define DISABLE_EEPROM_SENDING_CODE 1
+//#define ENABLE_FLASH_BYTE_CODE 1
 
 // our data packet is OUR_COMMON_CODE << 24 | MY_ID << 16 | mode | data(=0b00{colour})
 #define COMMON_CODE_MASK 0xff000000
