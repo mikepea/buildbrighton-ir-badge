@@ -2,7 +2,12 @@
 // common code so we know def is a badge
 #define OUR_COMMON_CODE 0xbb
 
-#define MY_CODE_HEADER  (long)(OUR_COMMON_CODE)<<24 | (long)(MY_ID) <<16
+#define MY_CODE_HEADER  (long)(OUR_COMMON_CODE)<<24 | (long)(MY_BADGE_ID) <<16
+
+// debugging flags
+#define TURN_OFF_PWM_COLOUR 1
+#define DISABLE_IR_SENDING_CODE 1
+#define ENABLE_FLASH_BYTE_CODE 1
 
 // our data packet is OUR_COMMON_CODE << 24 | MY_ID << 16 | mode | data(=0b00{colour})
 #define COMMON_CODE_MASK 0xff000000
@@ -25,8 +30,8 @@
 
 // Zombie game
 #define BITTEN_MAX         5
-#define MAX_TIME_INFECTED  120
-#define MAX_TIME_DEAD      15
+#define MAX_TIME_INFECTED  15
+#define MAX_TIME_DEAD      5
 
 // Apple codes (device id is first byte, mine is 5c)
 #define APPLE_PLAY              0x000487ee
@@ -51,6 +56,14 @@
 #define irOutMask    0b00010000
 // 4 = PB3
 #define irInPortBPin  4
+
+#define JUST_RED_ON      PORTB |= rgbMask; PORTB &= ~(redMask);
+#define JUST_GREEN_ON    PORTB |= rgbMask; PORTB &= ~(grnMask);
+#define JUST_BLUE_ON     PORTB |= rgbMask; PORTB &= ~(bluMask);
+
+#define FLASH_BLUE      PORTB ^= bluMask; delay_ten_us(100); PORTB ^= bluMask;
+#define FLASH_GREEN     PORTB ^= grnMask; delay_ten_us(100); PORTB ^= grnMask;
+#define FLASH_RED       PORTB ^= redMask; delay_ten_us(100); PORTB ^= redMask;
 
 #define RED 0
 #define GREEN 1

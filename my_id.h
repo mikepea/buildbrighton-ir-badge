@@ -1,2 +1,2 @@
 
-#define MY_ID   0x01
+#define MY_BADGE_ID   0x0c

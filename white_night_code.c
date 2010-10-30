@@ -8,7 +8,6 @@
  *    http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1210243556
  */
 
-
 #include "my_id.h"
 #include "white_night_code.h"
 
@@ -18,9 +17,10 @@
 
 uint8_t same_colour_count = 0;
 uint8_t last_colour = 0;
-uint8_t curr_colour = MY_ID & displayRGBMask;
+uint8_t curr_colour = (uint8_t)MY_BADGE_ID & displayRGBMask;
 uint8_t next_colour = 0;
 uint8_t my_mode = CYCLE_COLOURS_SEEN;
+//uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
 
 // counts 'ticks' (kinda-seconds) of main loop
@@ -75,6 +75,7 @@ void enableIROut(void) {
 
 }
 
+#ifndef DISABLE_IR_SENDING_CODE
 void sendNEC(unsigned long data)
 {
     // handle turning on an approximation of our colour,
@@ -98,6 +99,7 @@ void sendNEC(unsigned long data)
     space(0);
     enableIRIn(); // switch back to recv mode
 }
+#endif
 
 
 // initialization
@@ -120,7 +122,7 @@ void enableIRIn(void) {
 
   RESET_TIMER0;
 
-  //sei();  // enable interrupts
+  sei();  // enable interrupts
 
   // initialize state machine variables
   irparams.rcvstate = IDLE ;
@@ -152,31 +154,28 @@ ISR(TIMER0_OVF_vect) {
 
   rgb_tick = (rgb_tick + 1) % 4;  // rgb_tick keeps track of which
 
-  //if ( debug_modes & DEBUG_TURN_OFF_DISPLAY == 0 ) {
-    // process RGB software PWM
-    // 
-                                    // rgb element we need to process.
-    if ((curr_colour & displayRedMask >> RED*2) > rgb_tick) {   
+#ifndef TURN_OFF_PWM_COLOUR
+    if (((curr_colour & displayRedMask) >> RED*2) > rgb_tick) {   
         // Update the red value
         PORTB &= ~redMask; // turn on
     } else {
         PORTB |= redMask;
     }
 
-    if ((curr_colour & displayGrnMask >> GREEN*2) > rgb_tick) {
+    if (((curr_colour & displayGrnMask) >> GREEN*2) > rgb_tick) {
         PORTB &= ~grnMask; // turn on
     }
     else {
         PORTB |= grnMask;
     }
 
-    if ((curr_colour & displayBluMask >> BLUE*2) > rgb_tick) {
+    if (((curr_colour & displayBluMask) >> BLUE*2) > rgb_tick) {
         PORTB &= ~bluMask; // turn on
     }
     else {
         PORTB |= bluMask;
     }
-  //}
+#endif
 
   irparams.irdata = (PINB & irInMask) >> (irInPortBPin - 1);
 
@@ -288,6 +287,7 @@ ISR(TIMER0_OVF_vect) {
       if (irparams.irdata == SPACE) {  // got a SPACE, check stop MARK time
         if ((irparams.timer >= BITMARKMIN) && (irparams.timer <= BITMARKMAX)) {
           // time OK -- got an IR code
+          //FLASH_RED;
           irparams.irbuf[irparams.fptr] = irparams.ircode ;   // store code at fptr position
           irparams.fptr = (irparams.fptr + 1) % MAXBUF ; // move fptr to next empty slot
         }
@@ -299,20 +299,20 @@ ISR(TIMER0_OVF_vect) {
 
 }
 
-/*
-void flash_ircode(long data) {
+#ifdef ENABLE_FLASH_BYTE_CODE
+void flash_byte(uint8_t data) {
 
-    for (int i=0; i<32; i++) {
+    for (uint8_t i=0; i<8; i++) {
         if ( data & 1 ) {
             PORTB |= rgbMask; // turns off RGB
             PORTB ^= redMask; // turns on red
-            delay_ten_us(IR_DATA_PRINT_DELAY);
+            delay_ten_us(20000);
             PORTB |= rgbMask; // turns off RGB
             delay_ten_us(IR_DATA_PRINT_DELAY);
         } else {
             PORTB |= rgbMask; // turns off RGB
             PORTB ^= bluMask; // turns on red
-            delay_ten_us(IR_DATA_PRINT_DELAY);
+            delay_ten_us(20000);
             PORTB |= bluMask; // turns off RGB
             delay_ten_us(IR_DATA_PRINT_DELAY);
         }
@@ -320,13 +320,15 @@ void flash_ircode(long data) {
     }
 
 }
-*/
+#endif
 
 void check_all_ir_buffers_for_data(void) {
 
     for (uint8_t j=0; j<MAXBUF; j++) {
 
         if (IRBUF_CUR) {
+
+            //FLASH_BLUE;
 
             //flash_ircode(irparams.irbuf[j]);
             //if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_UP ) {
@@ -335,17 +337,17 @@ void check_all_ir_buffers_for_data(void) {
             //} else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_NEXT_TRACK ) {
             //    curr_colour = displayBluMask;
             
-            //} else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
-            //    curr_colour = displayRedMask;
+            if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
+                my_mode = AM_INFECTED;
 
-            if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
+            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
                 // turn'em off, n sync-ish em up.
                 my_mode = CYCLE_COLOURS_SEEN;
                 curr_colour = 0;
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PLAY ) {
-                // de-zombie folk
-                my_mode = CYCLE_COLOURS_SEEN;
+                // zombie 'em up
+                my_mode = AM_ZOMBIE;
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
                 // go into data transfer mode - IR all known info to a receiving station
@@ -420,14 +422,21 @@ void update_my_state(void) {
         // read next valid id from EEPROM
         for ( uint8_t i = curr_colour + 1; i<128; i++ ) {
             uint8_t seen = eeprom_read_byte((uint8_t*)i);
-            if ( seen ) {
+            FLASH_GREEN;
+            if ( seen == 1 ) {
+                flash_byte(curr_colour);
                 last_colour = curr_colour;
                 curr_colour = seen & displayRGBMask; // in case ID is >= 64
                 break;
             }
         }
 
-    } 
+    } else if ( my_mode == INIT_MODE ) {
+        // do nothing
+        if ( main_loop_counter > 5 ) {
+            my_mode = CYCLE_COLOURS_SEEN;
+        }
+    }
 
 }
 
@@ -447,17 +456,21 @@ int main(void) {
                     // -- (if we set an input pin High it activates a
                     // pull-up resistor, which we don't need, but don't care about either)
 
-    enableIRIn();
+    //enableIRIn();
     sei();                // enable microcontroller interrupts
 
     long my_code = 0;
 
+
     while (1) {
 
         // set code to whatever we want to send
+        //my_code  = MY_CODE_HEADER | (long)(my_mode) <<8 | curr_colour;   // ID, plus blank colour
         my_code  = MY_CODE_HEADER | (long)(my_mode) <<8 | curr_colour;   // ID, plus blank colour
 
         disable_ir_recving();
+
+#ifndef DISABLE_IR_SENDING_CODE
         if ( my_mode == SEND_ALL_EEPROM ) {
             for ( uint8_t i = 0; i < 128; i++ ) {
                 uint8_t has_seen = eeprom_read_byte((uint8_t*)i);
@@ -467,18 +480,22 @@ int main(void) {
                 }
             }
         }
+
         for (uint8_t i=0; i<NUM_SENDS; i++) {
            // transmit our identity, without interruption
            sendNEC(my_code);  // takes ~68ms
            //delay_ten_us(3280); // delay for 32ms
         }
+
+#endif
+        enableIRIn();
         enable_ir_recving();
 
         // loop a number of times, to have ~1s of recving/game logic
         for (int i=0; i<730; i++) {
 
             check_all_ir_buffers_for_data();
-            delay_ten_us(92 + (MY_ID % 16));  // differ sleep period so devices are less likely to interfere
+            delay_ten_us(92 + (MY_BADGE_ID % 16));  // differ sleep period so devices are less likely to interfere
 
         }
 
