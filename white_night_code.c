@@ -331,11 +331,6 @@ void check_all_ir_buffers_for_data(void) {
             //FLASH_BLUE;
 
             //flash_ircode(irparams.irbuf[j]);
-            //if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_UP ) {
-            //    curr_colour = displayGrnMask;
-
-            //} else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_NEXT_TRACK ) {
-            //    curr_colour = displayBluMask;
             
             if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
                 my_mode = AM_INFECTED;
@@ -368,7 +363,8 @@ void check_all_ir_buffers_for_data(void) {
                 }
 
                 // what mode are they in?
-                uint8_t recd_mode = (IRBUF_CUR & ID_MASK) >> 8;
+                uint8_t recd_mode = (IRBUF_CUR & MODE_MASK) >> 8;
+                //flash_byte(recd_mode);
 
                 // what data did they send me?
                 //uint8_t recd_data = (IRBUF_CUR & DATA_MASK);
@@ -379,8 +375,10 @@ void check_all_ir_buffers_for_data(void) {
                         my_mode = AM_INFECTED;
                         bit_by_zombie_count = 0;
                         time_infected = main_loop_counter;
+                        FLASH_RED;
                     } else {
                         bit_by_zombie_count++;
+                        FLASH_BLUE;
                     }
                     break; // only get bitten by one zombie in a pack 
 
@@ -390,13 +388,14 @@ void check_all_ir_buffers_for_data(void) {
                 } else if (recd_mode == CYCLE_COLOURS_SEEN) {
                     if ( my_mode == AM_INFECTED ) {
                         // phew, found someone to fix me.
-                        my_mode == CYCLE_COLOURS_SEEN;
+                        my_mode = CYCLE_COLOURS_SEEN;
                     }
            
                 } 
 
             }
-            IRBUF_CUR = 0; // processed this code, delete it.
+
+            irparams.irbuf[j] = 0; // processed this code, delete it.
 
         }
     }
@@ -479,6 +478,7 @@ int main(void) {
                     //delay_ten_us(10000);
                 }
             }
+            my_mode = CYCLE_COLOURS_SEEN;
         }
 
         for (uint8_t i=0; i<NUM_SENDS; i++) {
