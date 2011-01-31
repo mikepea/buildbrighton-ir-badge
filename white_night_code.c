@@ -16,9 +16,7 @@
 #include <avr/eeprom.h>
 
 uint8_t same_colour_count = 0;
-uint8_t last_colour = 0;
 uint8_t curr_colour = (uint8_t)MY_BADGE_ID & displayRGBMask;
-uint8_t next_colour = 0;
 uint8_t my_mode = CYCLE_COLOURS_SEEN;
 //uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
@@ -332,21 +330,21 @@ void check_all_ir_buffers_for_data(void) {
 
             //flash_ircode(irparams.irbuf[j]);
             
-            if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
-                my_mode = AM_INFECTED;
+            //if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
+            //    my_mode = AM_INFECTED;
 
-            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
+            if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
                 // turn'em off, n sync-ish em up.
                 my_mode = CYCLE_COLOURS_SEEN;
                 curr_colour = 0;
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PLAY ) {
                 // zombie 'em up
-                my_mode = AM_ZOMBIE;
+                my_mode = AM_INFECTED;
 
-            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
-                // go into data transfer mode - IR all known info to a receiving station
-                my_mode = SEND_ALL_EEPROM;
+            //} else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
+            //    // go into data transfer mode - IR all known info to a receiving station
+            //    my_mode = SEND_ALL_EEPROM;
 
             } else if ( (IRBUF_CUR & COMMON_CODE_MASK) == (long)(OUR_COMMON_CODE)<<24) {
 
@@ -418,16 +416,16 @@ void update_my_state(void) {
     } else if ( my_mode == CYCLE_COLOURS_SEEN ) {
         // read next valid id from EEPROM
         //FLASH_GREEN;
-        for ( uint8_t i = (curr_colour + 1); i<128; i++ ) {
-            uint8_t seen = eeprom_read_byte((uint8_t*)i);
-            if ( seen == 1 ) {
-                //FLASH_RED;
-                //flash_byte(curr_colour);
-                last_colour = curr_colour;
-                curr_colour = i & displayRGBMask; // in case ID is >= 64
-                break;
+        uint8_t i = curr_colour;
+        uint8_t seen = 0;
+        do{
+            i++;
+            if(i > 127){
+                i = 0;
             }
-        }
+            seen = eeprom_read_byte((uint8_t*)i);
+        }while(seen != 1);
+        curr_colour = i & displayRGBMask; // in case ID is >= 64
 
     } else if ( my_mode == INIT_MODE ) {
         // do nothing

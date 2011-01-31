@@ -1,12 +1,13 @@
-MCU = attiny25
+MCU = attiny45
+#MCU = attiny25
 #MCU = attiny85
 
 F_CPU = 8000000   	# 8 MHz
 
-AVRDUDE_PROGRAMMER = usbtiny
-#AVRDUDE_PROGRAMMER = avrispv2
+#AVRDUDE_PROGRAMMER = usbtiny
+AVRDUDE_PROGRAMMER = stk500
 
-AVRDUDE_PORT = usb	# programmer connected to USB
+AVRDUDE_PORT =  /dev/cu.usbmodem3d11	# programmer connected to USB
 
 # Default target.
 
@@ -25,7 +26,7 @@ program-timer_test: timer_test.hex
 # this is necessary if you're burning the AVR for the first time...
 # sets the proper fuse for 8MHz internal oscillator with no clk div
 burn-fuse:
-	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 250 -u -U lfuse:w:0xa2:m -U hfuse:w:0xdf:m
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 250 -u -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m
 
 # this programs the dependant hex file using our default avrdude flags
 program-%:

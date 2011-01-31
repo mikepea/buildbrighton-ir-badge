@@ -6,7 +6,7 @@
 
 // debugging flags
 //#define TURN_OFF_PWM_COLOUR 1
-#define DISABLE_IR_SENDING_CODE 1
+//#define DISABLE_IR_SENDING_CODE 1
 #define DISABLE_EEPROM_SENDING_CODE 1
 //#define ENABLE_FLASH_BYTE_CODE 1
 
@@ -30,8 +30,8 @@
 #define DEBUG_TURN_OFF_SENDNEC 0b00000001
 
 // Zombie game
-#define BITTEN_MAX         5
-#define MAX_TIME_INFECTED  15
+#define BITTEN_MAX         3
+#define MAX_TIME_INFECTED  60
 #define MAX_TIME_DEAD      5
 
 // Apple codes (device id is first byte, mine is 5c)
