@@ -1,8 +1,9 @@
 .map
+*.aps
+*.aws
 *.hex
 *.lst
-IRremote/
-NECrecv/
+default/
 white-night-code
 timer_test
 38khz_pwm_code

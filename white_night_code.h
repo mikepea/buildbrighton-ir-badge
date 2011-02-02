@@ -7,8 +7,8 @@
 // debugging flags
 //#define TURN_OFF_PWM_COLOUR 1
 //#define DISABLE_IR_SENDING_CODE 1
-#define DISABLE_EEPROM_SENDING_CODE 1
-//#define ENABLE_FLASH_BYTE_CODE 1
+//#define DISABLE_EEPROM_SENDING_CODE 1
+#define ENABLE_FLASH_BYTE_CODE 1
 
 // our data packet is OUR_COMMON_CODE << 24 | MY_ID << 16 | mode | data(=0b00{colour})
 #define COMMON_CODE_MASK 0xff000000
@@ -17,12 +17,12 @@
 #define DATA_MASK        0x000000ff
 
 // our 'game modes'
-#define INIT_MODE        0x01
-#define SENDING_COLOUR   0x02
-#define AM_ZOMBIE        0x03
-#define AM_INFECTED      0x04
-#define SEND_ALL_EEPROM  0x05
-#define REFLECT_COLOUR   0x06
+#define INIT_MODE            0x01
+#define SENDING_COLOUR       0x02
+#define AM_ZOMBIE            0x03
+#define AM_INFECTED          0x04
+#define SEND_ALL_EEPROM      0x05
+#define REFLECT_COLOUR       0x06
 #define CYCLE_COLOURS_SEEN   0x07
 
 // some debugging modes
@@ -32,7 +32,7 @@
 // Zombie game
 #define BITTEN_MAX         3
 #define MAX_TIME_INFECTED  60
-#define MAX_TIME_DEAD      5
+#define MAX_TIME_DEAD      15
 
 // Apple codes (device id is first byte, mine is 5c)
 #define APPLE_PLAY              0x000487ee
@@ -152,8 +152,6 @@
 // Values for decode_type
 #define NONE 0
 #define NEC 1
-
-
 
 #define _GAP 5000 // Minimum gap between transmissions
 #define GAP_TICKS (_GAP/USECPERTICK)

@@ -63,7 +63,6 @@ void space(int time) {
   delay_ten_us(time / 10);
 }
 
-
 void enableIROut(void) {
 
   TCCR1 = _BV(CS10);  // turn on clock, prescale = 1
