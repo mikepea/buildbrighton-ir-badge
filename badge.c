@@ -9,7 +9,7 @@
  */
 
 #include "my_id.h"
-#include "white_night_code.h"
+#include "badge.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
