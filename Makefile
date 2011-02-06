@@ -5,9 +5,9 @@ MCU = attiny45
 F_CPU = 8000000   	# 8 MHz
 
 #AVRDUDE_PROGRAMMER = usbtiny
-AVRDUDE_PROGRAMMER = stk500
+AVRDUDE_PROGRAMMER = stk500v2
 
-AVRDUDE_PORT =  /dev/cu.usbmodem1a21	# programmer connected to USB
+AVRDUDE_PORT =  /dev/cu.usbmodemfa221	# programmer connected to USB
 
 # Default target.
 
@@ -25,7 +25,7 @@ burn-fuse:
 
 # this programs the dependant hex file using our default avrdude flags
 program-%:
-	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH)$<
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 1 $(AVRDUDE_WRITE_FLASH)$<
 
 FORMAT = ihex 		# create a .hex file
 OPT = s			# assembly-level optimization
