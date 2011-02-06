@@ -1,3 +1,8 @@
+// chip specifics
+// tiny45
+#define EEPROM_SIZE 256
+// tiny25
+//#define EEPROM_SIZE 128
 
 // common code so we know def is a badge
 #define OUR_COMMON_CODE 0xbb
@@ -6,9 +11,9 @@
 
 // debugging flags
 //#define TURN_OFF_PWM_COLOUR 1
-//#define DISABLE_IR_SENDING_CODE 1
+#define DISABLE_IR_SENDING_CODE 1
 //#define DISABLE_EEPROM_SENDING_CODE 1
-#define ENABLE_FLASH_BYTE_CODE 1
+//#define ENABLE_FLASH_BYTE_CODE 1
 
 // our data packet is OUR_COMMON_CODE << 24 | MY_ID << 16 | mode | data(=0b00{colour})
 #define COMMON_CODE_MASK 0xff000000
@@ -24,6 +29,7 @@
 #define SEND_ALL_EEPROM      0x05
 #define REFLECT_COLOUR       0x06
 #define CYCLE_COLOURS_SEEN   0x07
+#define SEND_ME_YOUR_DATA    0x08
 
 // some debugging modes
 #define DEBUG_TURN_OFF_DISPLAY 0b00000001

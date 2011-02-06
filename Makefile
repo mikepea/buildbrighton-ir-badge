@@ -7,12 +7,12 @@ F_CPU = 8000000   	# 8 MHz
 #AVRDUDE_PROGRAMMER = usbtiny
 AVRDUDE_PROGRAMMER = stk500
 
-AVRDUDE_PORT =  /dev/cu.usbmodem3d11	# programmer connected to USB
+AVRDUDE_PORT =  /dev/cu.usbmodem1a21	# programmer connected to USB
 
 # Default target.
 
 all: 	begin gccversion \
-	white_night_code.hex \
+	badge.hex \
 	finished end
 
 # Program the device

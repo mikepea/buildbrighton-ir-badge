@@ -7,3 +7,4 @@ default/
 white-night-code
 timer_test
 38khz_pwm_code
+contrib/hsv_test

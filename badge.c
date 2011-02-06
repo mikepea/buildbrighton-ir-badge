@@ -21,6 +21,7 @@
 
 uint8_t same_colour_count = 0;
 uint8_t curr_colour = (uint8_t)MY_BADGE_ID & displayRGBMask;
+int curr_r = 0, curr_g = 0, curr_b = 0;
 uint8_t my_mode = CYCLE_COLOURS_SEEN;
 //uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
@@ -76,14 +77,14 @@ void enableIROut(void) {
 
 }
 
-#ifndef DISABLE_IR_SENDING_CODE
 void sendNEC(unsigned long data)
 {
+#ifndef DISABLE_IR_SENDING_CODE
     // handle turning on an approximation of our colour,
     // as RGB PWM is off during IR sending.
     // TODO
 
-    enableIROut(); // put timer into send mode
+    //enableIROut(); // put timer into send mode
     mark(NEC_HDR_MARK);
     space(NEC_HDR_SPACE);
     for (uint8_t i = 0; i < 32; i++) {
@@ -98,9 +99,9 @@ void sendNEC(unsigned long data)
     }
     mark(NEC_BIT_MARK);
     space(0);
-    enableIRIn(); // switch back to recv mode
-}
+    //enableIRIn(); // switch back to recv mode
 #endif
+}
 
 // initialization
 void enableIRIn(void) {
@@ -135,25 +136,35 @@ void enableIRIn(void) {
   //pinMode(irparams.recvpin, INPUT);
 }
 
-void HSVtoRGB( int *r, int *g,int *b, int h, int s, int v )
+void HSVtoRGB( int *r, int *g, int *b, uint8_t hue )
 {
     int f;
     long p, q, t;
- 
+    int s = 255;
+    int v = 255;
+
     if( s == 0 )
     {
+        // easy - just shades of grey.
         *r = *g = *b = v;
         return;
     }
+
+    // special case, treat hue=0 as black
+    if ( hue == 0) {
+        *r = *g = *b = 0;
+    }
+
  
-    f = ((h%60)*255)/60;
-    h /= 60;
+    // hue is from 1-240, where 40=60deg, 80=120deg, so we can fit into a byte
+    f = ((hue%40)*255)/40;
+    hue /= 40;
  
     p = (v * (256 - s))/256;
     q = (v * ( 256 - (s * f)/256 ))/256;
     t = (v * ( 256 - (s * ( 256 - f ))/256))/256;
  
-    switch( h ) {
+    switch( hue ) {
     case 0:
         *r = v;
         *g = t;
@@ -205,29 +216,48 @@ ISR(TIMER0_OVF_vect) {
 
   RESET_TIMER0;
 
-  rgb_tick = (rgb_tick + 1) % 4;  // rgb_tick keeps track of which
+  rgb_tick = (rgb_tick + 16) % 256;
 
 #ifndef TURN_OFF_PWM_COLOUR
-    if (((curr_colour & displayRedMask) >> RED*2) > rgb_tick) {   
-        // Update the red value
+    if ((curr_r > rgb_tick) && (rgb_tick < 32 )) {
         PORTB &= ~redMask; // turn on
     } else {
         PORTB |= redMask;
     }
 
-    if (((curr_colour & displayGrnMask) >> GREEN*2) > rgb_tick) {
+    if (curr_g > rgb_tick) {
         PORTB &= ~grnMask; // turn on
-    }
-    else {
+    } else {
         PORTB |= grnMask;
     }
 
-    if (((curr_colour & displayBluMask) >> BLUE*2) > rgb_tick) {
+    if (curr_b > rgb_tick) {
         PORTB &= ~bluMask; // turn on
     }
     else {
         PORTB |= bluMask;
     }
+
+#else
+    if ( (curr_r == 255) && (rgb_tick < 32) ) {
+        PORTB &= ~redMask; // turn on
+    } else {
+        PORTB |= redMask;
+    }
+
+    if (curr_g == 255) {
+        PORTB &= ~grnMask; // turn on
+    } else {
+        PORTB |= grnMask;
+    }
+
+    if (curr_b == 255) {
+        PORTB &= ~bluMask; // turn on
+    }
+    else {
+        PORTB |= bluMask;
+    }
+
 #endif
 
   irparams.irdata = (PINB & irInMask) >> (irInPortBPin - 1);
@@ -435,6 +465,10 @@ void check_all_ir_buffers_for_data(void) {
                 } else if (recd_mode == SEND_ALL_EEPROM) {
                     continue; // ignore them
 
+                } else if (recd_mode == SEND_ME_YOUR_DATA ) {
+                    my_mode = SEND_ALL_EEPROM;
+                    continue;
+
                 } else if (recd_mode == CYCLE_COLOURS_SEEN) {
                     if ( my_mode == AM_INFECTED ) {
                         // phew, found someone to fix me.
@@ -457,7 +491,7 @@ void update_my_state(void) {
 
     if ( my_mode == AM_INFECTED ) {
         // yikes. 
-        curr_colour = ( main_loop_counter % 2 ) ? 0 : displayGrnMask;
+        curr_colour = ( main_loop_counter % 2 ) ? 0 : 80;
         if ( (main_loop_counter - time_infected) > MAX_TIME_INFECTED ) {
             // you die
             my_mode = AM_ZOMBIE;
@@ -472,15 +506,16 @@ void update_my_state(void) {
         // read next valid id from EEPROM
         //FLASH_GREEN;
         uint8_t i = curr_colour;
+        if ( i == 0 ) { i++; } // EEPROM 0x00 reserved for MY_ID.
         uint8_t seen = 0;
-        do{
+        do {
             i++;
-            if(i > 127){
-                i = 0;
+            if (i > 240) {
+                i = 1;
             }
             seen = eeprom_read_byte((uint8_t*)i);
-        }while(seen != 1);
-        curr_colour = i & displayRGBMask; // in case ID is >= 64
+        } while ( (seen == 0xff) || (seen == 0) );
+        curr_colour = i;
 
     } else if ( my_mode == INIT_MODE ) {
         // do nothing
@@ -488,6 +523,8 @@ void update_my_state(void) {
             my_mode = CYCLE_COLOURS_SEEN;
         }
     }
+
+    HSVtoRGB(&curr_r, &curr_g, &curr_b, curr_colour);
 
 }
 
@@ -515,30 +552,36 @@ int main(void) {
 
     while (1) {
 
-        // set code to whatever we want to send
-        //my_code  = MY_CODE_HEADER | (long)(my_mode) <<8 | curr_colour;   // ID, plus blank colour
-        my_code  = MY_CODE_HEADER | (long)(my_mode) <<8 | curr_colour;   // ID, plus blank colour
-
         disable_ir_recving();
+        enableIROut();
+        //FLASH_BLUE;
 
 #ifndef DISABLE_EEPROM_SENDING_CODE
         if ( my_mode == SEND_ALL_EEPROM ) {
-            for ( uint8_t i = 0; i < 128; i++ ) {
-                uint8_t has_seen = eeprom_read_byte((uint8_t*)i);
-                if ( has_seen ) {
-                    sendNEC( MY_CODE_HEADER | (long)(SEND_ALL_EEPROM)<<8 | has_seen);
-                    //delay_ten_us(10000);
+            my_mode = CYCLE_COLOURS_SEEN; // this will de-zombify the badge, if prev zombied
+            sendNEC( MY_CODE_HEADER | (long)(SEND_ALL_EEPROM)<<8 | 0x01); // header
+            delay_ten_us(10000);
+            // first byte of EEPROM is my_id
+            for ( uint8_t i = 1; i < EEPROM_SIZE - 1 ; i++ ) {
+                uint8_t data = eeprom_read_byte((uint8_t*)i);
+                if ( (data > 0) && (data < 255) ) {
+                    sendNEC( (long)(OUR_COMMON_CODE)<<24 | (long)(i)<<8 | data );
+                    delay_ten_us(10000);
                 }
             }
-            my_mode = CYCLE_COLOURS_SEEN;
+            sendNEC( MY_CODE_HEADER | (long)(SEND_ALL_EEPROM)<<8 | 0xFF); // footer
+            delay_ten_us(10000);
         }
 #endif
+
+        my_code  = MY_CODE_HEADER | (long)(my_mode) <<8 | curr_colour;
 
 #ifndef DISABLE_IR_SENDING_CODE
         for (uint8_t i=0; i<NUM_SENDS; i++) {
            // transmit our identity, without interruption
            sendNEC(my_code);  // takes ~68ms
            //delay_ten_us(3280); // delay for 32ms
+           //FLASH_RED;
         }
 #endif
 
@@ -549,11 +592,15 @@ int main(void) {
         for (int i=0; i<730; i++) {
 
             check_all_ir_buffers_for_data();
+
+            if ( i % 73 == 0 ) {
+                update_my_state();
+            }
+
             delay_ten_us(92 + (MY_BADGE_ID % 16));  // differ sleep period so devices are less likely to interfere
 
         }
 
-        update_my_state();
         main_loop_counter++;
 
     }
