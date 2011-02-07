@@ -1,8 +1,8 @@
 /*
- * white_night_code
+ * buildbrighton-ir-badge 
  *
  * Copyright 2010 BuildBrighton (Mike Pountney, Matthew Edwards)
- * For details, see http://github.com/mikepea/white-night-code
+ * For details, see http://github.com/mikepea/buildbrighton-ir-badge
  *
  * Interrupt code based on NECIRrcv by Joe Knapp, IRremote by Ken Shirriff
  *    http://www.arduino.cc/cgi-bin/yabb2/YaBB.pl?num=1210243556
@@ -21,7 +21,9 @@
 
 uint8_t same_colour_count = 0;
 uint8_t curr_colour = (uint8_t)MY_BADGE_ID & displayRGBMask;
-int curr_r = 0, curr_g = 0, curr_b = 0;
+uint8_t curr_r = 0;
+uint8_t curr_g = 0;
+uint8_t curr_b = 0;
 uint8_t my_mode = CYCLE_COLOURS_SEEN;
 //uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
@@ -136,12 +138,10 @@ void enableIRIn(void) {
   //pinMode(irparams.recvpin, INPUT);
 }
 
-void HSVtoRGB( int *r, int *g, int *b, uint8_t hue )
+void HSVtoRGB( uint8_t *r, uint8_t *g, uint8_t *b, uint8_t hue, uint8_t s, uint8_t v )
 {
     int f;
     long p, q, t;
-    int s = 255;
-    int v = 255;
 
     if( s == 0 )
     {
@@ -151,10 +151,9 @@ void HSVtoRGB( int *r, int *g, int *b, uint8_t hue )
     }
 
     // special case, treat hue=0 as black
-    if ( hue == 0) {
-        *r = *g = *b = 0;
-    }
-
+    //if ( hue == 0) {
+    //    *r = *g = *b = 0;
+    //}
  
     // hue is from 1-240, where 40=60deg, 80=120deg, so we can fit into a byte
     f = ((hue%40)*255)/40;
@@ -216,25 +215,25 @@ ISR(TIMER0_OVF_vect) {
 
   RESET_TIMER0;
 
-  rgb_tick = (rgb_tick + 16) % 256;
+  rgb_tick = (rgb_tick + 1) % 256;
 
 #ifndef TURN_OFF_PWM_COLOUR
-    if ((curr_r > rgb_tick) && (rgb_tick < 32 )) {
+    //if ((curr_r > rgb_tick) && (rgb_tick < 32 )) {
+    if ((curr_r > rgb_tick) && ( rgb_tick % 8 == 0) ) {
         PORTB &= ~redMask; // turn on
     } else {
         PORTB |= redMask;
     }
 
-    if (curr_g > rgb_tick) {
+    if ((curr_g > rgb_tick) && ( rgb_tick % 4 == 0)) {
         PORTB &= ~grnMask; // turn on
     } else {
         PORTB |= grnMask;
     }
 
-    if (curr_b > rgb_tick) {
+    if ((curr_b > rgb_tick) && ( rgb_tick % 2 == 0)) {
         PORTB &= ~bluMask; // turn on
-    }
-    else {
+    } else {
         PORTB |= bluMask;
     }
 
@@ -524,7 +523,13 @@ void update_my_state(void) {
         }
     }
 
-    HSVtoRGB(&curr_r, &curr_g, &curr_b, curr_colour);
+    // curr_colour is 1-240, 0=off
+    if ( curr_colour == 0 ) {
+        // converts to RGB 0x0 - & LEDs off.
+        HSVtoRGB(&curr_r, &curr_g, &curr_b, 0, 0, 0);
+    } else {
+        HSVtoRGB(&curr_r, &curr_g, &curr_b, (curr_colour - 1), 255, 255);
+    }
 
 }
 
@@ -593,6 +598,7 @@ int main(void) {
 
             check_all_ir_buffers_for_data();
 
+            //if ( i == 0 ) {
             if ( i % 73 == 0 ) {
                 update_my_state();
             }

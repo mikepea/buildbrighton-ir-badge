@@ -1,10 +1,11 @@
 .map
 *.aps
 *.aws
-*.hex
+badge.hex
 *.lst
+*.swp
 default/
-white-night-code
+badge
 timer_test
 38khz_pwm_code
 contrib/hsv_test

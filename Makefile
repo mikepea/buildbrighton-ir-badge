@@ -23,6 +23,13 @@ program-badge: badge.hex
 burn-fuse:
 	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 250 -u -U lfuse:w:0xe2:m -U hfuse:w:0xdf:m
 
+eeprom-read:
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 5 -U eeprom:r:eeprom_sets/eeprom_read.hex:i
+
+eeprom-write:
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 5 -U eeprom:w:eeprom_sets/eeprom_write.hex:i
+
+
 # this programs the dependant hex file using our default avrdude flags
 program-%:
 	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 1 $(AVRDUDE_WRITE_FLASH)$<

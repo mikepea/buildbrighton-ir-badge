@@ -11,7 +11,7 @@
 
 // debugging flags
 //#define TURN_OFF_PWM_COLOUR 1
-#define DISABLE_IR_SENDING_CODE 1
+//#define DISABLE_IR_SENDING_CODE 1
 //#define DISABLE_EEPROM_SENDING_CODE 1
 //#define ENABLE_FLASH_BYTE_CODE 1
 

@@ -1,10 +1,8 @@
 
-void HSVtoRGB( int *r, int *g, int *b, int hue )
+void HSVtoRGB( int *r, int *g, int *b, int hue, int s, int v )
 {
     int f;
     long p, q, t;
-    int s = 255;
-    int v = 255;
 
     if( s == 0 )
     {
@@ -115,10 +113,10 @@ int main(void) {
     float nr, ng, nb;
 
     int i;
-    for (i=0; i<360; i++) {
-        HSVtoRGB(&r, &g, &b, i);
+    for (i=0; i<240; i++) {
+        HSVtoRGB(&r, &g, &b, i, 255, 255);
         convert_hsv_to_rgb_float(&nr, &ng, &nb, (float)(i), 1.0, 1.0);
-        printf("Int:   R: %3i, G: %3i, B: %3i  :: Hue %3i\n", r, g, b, i);
+        printf("Int:   R: %3i, G: %3i, B: %3i  :: Hue %3i :: ID %02x\n", r, g, b, i, i+1);
         printf("Float: R: %3.0f, G: %3.0f, B: %3.0f  :: Hue %3i\n", nr*255, ng*255, nb*255, i);
         printf("\n");
     }
