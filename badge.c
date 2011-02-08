@@ -12,21 +12,22 @@
  *
  */
 
-#include "my_id.h"
 #include "badge.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
 
-uint8_t same_colour_count = 0;
-uint8_t curr_colour = (uint8_t)MY_BADGE_ID & displayRGBMask;
+uint8_t last_eeprom_read = 1;
+uint8_t curr_colour = 0;
 uint8_t curr_r = 0;
 uint8_t curr_g = 0;
 uint8_t curr_b = 0;
-uint8_t my_mode = CYCLE_COLOURS_SEEN;
-//uint8_t my_mode = INIT_MODE;
+//uint8_t my_mode = CYCLE_COLOURS_SEEN;
+uint8_t my_id = 0xff;
+uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
+uint8_t rgb_colours[3] = { 1, 81, 161 }; // curr_colour values for R, G, and B.
 
 // counts 'ticks' (kinda-seconds) of main loop
 int     main_loop_counter = 0;
@@ -74,34 +75,89 @@ void enableIROut(void) {
 
   TCCR1 = _BV(CS10);  // turn on clock, prescale = 1
   GTCCR = _BV(PWM1B) | _BV(COM1B0);  // toggle OC1B on compare match; PWM mode on OCR1C/B.
+
+  // these two values give 38khz PWM on IR LED, with 33%ish duty cycle
   OCR1C = 210;
   OCR1B = 70;
 
 }
+
+void display_colour(uint8_t tick) {
+
+#ifndef TURN_OFF_PWM_COLOUR
+    if ((curr_r > tick) && ( tick % 10 == 0) ) {
+        PORTB &= ~redMask; // turn on
+    } else {
+        PORTB |= redMask;
+    }
+
+    if ((curr_g > tick) && ( tick % 2 == 0)) {
+        PORTB &= ~grnMask; // turn on
+    } else {
+        PORTB |= grnMask;
+    }
+
+    if ((curr_b > tick) && ( tick % 2 == 0)) {
+        PORTB &= ~bluMask; // turn on
+    } else {
+        PORTB |= bluMask;
+    }
+
+#else
+    if ( (curr_r == 255) && (tick < 32) ) {
+        PORTB &= ~redMask; // turn on
+    } else {
+        PORTB |= redMask;
+    }
+
+    if (curr_g == 255) {
+        PORTB &= ~grnMask; // turn on
+    } else {
+        PORTB |= grnMask;
+    }
+
+    if (curr_b == 255) {
+        PORTB &= ~bluMask; // turn on
+    }
+    else {
+        PORTB |= bluMask;
+    }
+
+#endif
+}
+
 
 void sendNEC(unsigned long data)
 {
 #ifndef DISABLE_IR_SENDING_CODE
     // handle turning on an approximation of our colour,
     // as RGB PWM is off during IR sending.
-    // TODO
 
-    //enableIROut(); // put timer into send mode
+    uint8_t t = 0; // count of 50us marks
+
+    display_colour(t);
     mark(NEC_HDR_MARK);
+    display_colour(t+=180);
     space(NEC_HDR_SPACE);
+    display_colour(t+=90);
+
     for (uint8_t i = 0; i < 32; i++) {
         if (data & 1) {
             mark(NEC_BIT_MARK);
+            display_colour(t+=11);
             space(NEC_ONE_SPACE);
+            display_colour(t+=11);
         } else {
             mark(NEC_BIT_MARK);
+            display_colour(t+=11);
             space(NEC_ZERO_SPACE);
+            display_colour(t+=33);
         }
         data >>= 1;
     }
     mark(NEC_BIT_MARK);
+    display_colour(t+=11);
     space(0);
-    //enableIRIn(); // switch back to recv mode
 #endif
 }
 
@@ -209,55 +265,15 @@ ISR(TIMER0_OVF_vect) {
 }
 */
 
+
 // Recorded in ticks of 50 microseconds.
 
 ISR(TIMER0_OVF_vect) {
 
   RESET_TIMER0;
 
-  rgb_tick = (rgb_tick + 1) % 256;
-
-#ifndef TURN_OFF_PWM_COLOUR
-    //if ((curr_r > rgb_tick) && (rgb_tick < 32 )) {
-    if ((curr_r > rgb_tick) && ( rgb_tick % 8 == 0) ) {
-        PORTB &= ~redMask; // turn on
-    } else {
-        PORTB |= redMask;
-    }
-
-    if ((curr_g > rgb_tick) && ( rgb_tick % 4 == 0)) {
-        PORTB &= ~grnMask; // turn on
-    } else {
-        PORTB |= grnMask;
-    }
-
-    if ((curr_b > rgb_tick) && ( rgb_tick % 2 == 0)) {
-        PORTB &= ~bluMask; // turn on
-    } else {
-        PORTB |= bluMask;
-    }
-
-#else
-    if ( (curr_r == 255) && (rgb_tick < 32) ) {
-        PORTB &= ~redMask; // turn on
-    } else {
-        PORTB |= redMask;
-    }
-
-    if (curr_g == 255) {
-        PORTB &= ~grnMask; // turn on
-    } else {
-        PORTB |= grnMask;
-    }
-
-    if (curr_b == 255) {
-        PORTB &= ~bluMask; // turn on
-    }
-    else {
-        PORTB |= bluMask;
-    }
-
-#endif
+  rgb_tick += 1;
+  display_colour(rgb_tick);
 
   irparams.irdata = (PINB & irInMask) >> (irInPortBPin - 1);
 
@@ -381,8 +397,8 @@ ISR(TIMER0_OVF_vect) {
 
 }
 
-#ifdef ENABLE_FLASH_BYTE_CODE
 void flash_byte(uint8_t data) {
+#ifdef ENABLE_FLASH_BYTE_CODE
 
     for (uint8_t i=0; i<8; i++) {
         if ( data & 1 ) {
@@ -401,8 +417,76 @@ void flash_byte(uint8_t data) {
         data >>= 1;
     }
 
-}
 #endif
+}
+
+void record_id_to_eeprom(uint8_t id) {
+    // have we seen them before?
+    // if not, record that we have
+    uint8_t times_seen = eeprom_read_byte((uint8_t*)id);
+    if ( times_seen == 255 ) {
+        // new id, since eeprom is initialised to 0xFF
+        eeprom_write_byte((uint8_t*)id, 1);
+    } else if (times_seen < 254 ) {
+        eeprom_write_byte((uint8_t*)id, times_seen + 1);
+    } // otherwise seen max (254) times
+}
+
+void process_badge_message(unsigned long code) {
+
+    // recving from a known badge
+    //
+    uint8_t recd_id = (code & ID_MASK) >> 16;
+
+    record_id_to_eeprom(recd_id);
+#ifdef DEBUG_DISPLAY_DATA_RECEIVED
+    flash_byte(recd_id);
+#endif
+
+    // what mode are they in?
+    uint8_t recd_mode = (code & MODE_MASK) >> 8;
+
+#ifdef DEBUG_DISPLAY_DATA_RECEIVED
+    flash_byte(recd_mode);
+#endif
+
+    // what data did they send me?
+    uint8_t recd_data = (code & DATA_MASK);
+
+    if (recd_mode == AM_ZOMBIE) {
+        // eek
+        if ( bit_by_zombie_count > BITTEN_MAX ) {
+            // oh noes! 
+            my_mode = AM_INFECTED;
+            bit_by_zombie_count = 0;
+            time_infected = main_loop_counter;
+        } else {
+            // munch munch
+            bit_by_zombie_count++;
+        }
+
+    } else if (recd_mode == SEND_ALL_EEPROM) {
+        // ignore them, only collection stations need to listen
+
+    } else if (recd_mode == SEND_ME_YOUR_DATA ) {
+        // ooh, a collection station, upload!
+        my_mode = SEND_ALL_EEPROM;
+
+    } else if (recd_mode == PROGRAM_BADGE_ID ) {
+        if ( my_mode == INIT_MODE ) {
+            // sweet, getting ID from registration station
+            eeprom_write_byte((uint8_t*)0, recd_data);
+        } // but if we're not in INIT_MODE, we've already got one.
+
+    } else if (recd_mode == CYCLE_COLOURS_SEEN) {
+        if ( my_mode == AM_INFECTED ) {
+            // phew, found someone to fix me.
+            my_mode = CYCLE_COLOURS_SEEN;
+        }
+
+    } 
+
+}
 
 void check_all_ir_buffers_for_data(void) {
 
@@ -410,14 +494,11 @@ void check_all_ir_buffers_for_data(void) {
 
         if (IRBUF_CUR) {
 
-            //FLASH_GREEN;
+            if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
+                // display our current id (by flashing binary blue/red on LED)
+                flash_byte(my_id);
 
-            //flash_ircode(irparams.irbuf[j]);
-            
-            //if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
-            //    my_mode = AM_INFECTED;
-
-            if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
+            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
                 // turn'em off, n sync-ish em up.
                 my_mode = CYCLE_COLOURS_SEEN;
                 curr_colour = 0;
@@ -426,71 +507,55 @@ void check_all_ir_buffers_for_data(void) {
                 // zombie 'em up
                 my_mode = AM_INFECTED;
 
-            //} else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
-            //    // go into data transfer mode - IR all known info to a receiving station
-            //    my_mode = SEND_ALL_EEPROM;
+            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
+                // go into data transfer mode - IR all known info to a receiving station
+                my_mode = SEND_ALL_EEPROM;
 
             } else if ( (IRBUF_CUR & COMMON_CODE_MASK) == (long)(OUR_COMMON_CODE)<<24) {
-
-                // recving from a known badge
-                
-                // who is it?
-                //
-                uint8_t recd_id = (IRBUF_CUR & ID_MASK) >> 16;
-
-                // have we seen them before?
-                // if not, record that we have
-                if ( eeprom_read_byte((uint8_t*)recd_id) != 1 ) {
-                    eeprom_write_byte((uint8_t*)recd_id, 1);
-                }
-
-                // what mode are they in?
-                uint8_t recd_mode = (IRBUF_CUR & MODE_MASK) >> 8;
-                //flash_byte(recd_mode);
-
-                // what data did they send me?
-                //uint8_t recd_data = (IRBUF_CUR & DATA_MASK);
-
-                if (recd_mode == AM_ZOMBIE) {
-                    // eek
-                    if ( bit_by_zombie_count > BITTEN_MAX ) {
-                        my_mode = AM_INFECTED;
-                        bit_by_zombie_count = 0;
-                        time_infected = main_loop_counter;
-                    } else {
-                        bit_by_zombie_count++;
-                    }
-
-                } else if (recd_mode == SEND_ALL_EEPROM) {
-                    continue; // ignore them
-
-                } else if (recd_mode == SEND_ME_YOUR_DATA ) {
-                    my_mode = SEND_ALL_EEPROM;
-                    continue;
-
-                } else if (recd_mode == CYCLE_COLOURS_SEEN) {
-                    if ( my_mode == AM_INFECTED ) {
-                        // phew, found someone to fix me.
-                        my_mode = CYCLE_COLOURS_SEEN;
-                    }
-           
-                } 
-
+                process_badge_message(IRBUF_CUR);
             }
 
             IRBUF_CUR = 0; // processed this code, delete it.
 
         }
-        //FLASH_BLUE;
+
     }
 
 }
 
-void update_my_state(void) {
+uint8_t get_next_colour() {
+
+    // read next valid id from EEPROM
+    uint8_t i = last_eeprom_read;
+    uint8_t count = 0;
+
+    if ( i == 0 ) { i++; } // EEPROM 0x00 reserved for my_id
+    uint8_t seen = 0;
+    do {
+        i++;
+        count++;
+        if (i > 240) {
+            i = 1;
+        }
+        seen = eeprom_read_byte((uint8_t*)i);
+    } while ( ( count < 5 ) && (seen == 0xff) || (seen == 0) );
+
+    last_eeprom_read = i;
+
+    if ( seen != 0xff && seen != 0 ) {
+        // new colour
+        return last_eeprom_read;
+    } else {
+        return curr_colour;
+    }
+
+}
+
+void update_my_state(int counter) {
 
     if ( my_mode == AM_INFECTED ) {
         // yikes. 
-        curr_colour = ( main_loop_counter % 2 ) ? 0 : 80;
+        curr_colour = ( main_loop_counter % 2 ) ? 0 : 81;
         if ( (main_loop_counter - time_infected) > MAX_TIME_INFECTED ) {
             // you die
             my_mode = AM_ZOMBIE;
@@ -499,27 +564,22 @@ void update_my_state(void) {
     } else if ( my_mode == AM_ZOMBIE ) {
         // hnnnngggg... brains...
         //
-        curr_colour = ( main_loop_counter % 3 ) ? 0 : displayRedMask;
+        curr_colour = ( main_loop_counter % 3 ) ? 0 : 1;
 
     } else if ( my_mode == CYCLE_COLOURS_SEEN ) {
-        // read next valid id from EEPROM
-        //FLASH_GREEN;
-        uint8_t i = curr_colour;
-        if ( i == 0 ) { i++; } // EEPROM 0x00 reserved for MY_ID.
-        uint8_t seen = 0;
-        do {
-            i++;
-            if (i > 240) {
-                i = 1;
-            }
-            seen = eeprom_read_byte((uint8_t*)i);
-        } while ( (seen == 0xff) || (seen == 0) );
-        curr_colour = i;
+        curr_colour = get_next_colour();
 
     } else if ( my_mode == INIT_MODE ) {
-        // do nothing
-        if ( main_loop_counter > 5 ) {
+        // need to work out badge id.
+        //  - will be set in EEPROM address 0
+        uint8_t eeprom_id = eeprom_read_byte((const uint8_t*)0);
+        if ( (eeprom_id > 0) && (eeprom_id < 255) ) {
+            my_id = eeprom_id;
+            eeprom_write_byte((uint8_t*) my_id, 1); // ensure we're in our own colour db
             my_mode = CYCLE_COLOURS_SEEN;
+        } else {
+            // cycle red, green, blue: so we can double check RGB LED is soldered correctly.
+            curr_colour = rgb_colours[main_loop_counter % 3];
         }
     }
 
@@ -553,7 +613,6 @@ int main(void) {
     sei();                // enable microcontroller interrupts
 
     long my_code = 0;
-    eeprom_write_byte((uint8_t*) MY_BADGE_ID, 1); // ensure we're in our own colour db
 
     while (1) {
 
@@ -600,10 +659,10 @@ int main(void) {
 
             //if ( i == 0 ) {
             if ( i % 73 == 0 ) {
-                update_my_state();
+                update_my_state( (i*256/730) );
             }
 
-            delay_ten_us(92 + (MY_BADGE_ID % 16));  // differ sleep period so devices are less likely to interfere
+            delay_ten_us(92 + (my_id % 16));  // differ sleep period so devices are less likely to interfere
 
         }
 

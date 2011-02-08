@@ -7,7 +7,7 @@
 // common code so we know def is a badge
 #define OUR_COMMON_CODE 0xbb
 
-#define MY_CODE_HEADER  (long)(OUR_COMMON_CODE)<<24 | (long)(MY_BADGE_ID) <<16
+#define MY_CODE_HEADER  (long)(OUR_COMMON_CODE)<<24 | (long)(my_id) <<16
 
 // debugging flags
 //#define TURN_OFF_PWM_COLOUR 1
@@ -30,6 +30,7 @@
 #define REFLECT_COLOUR       0x06
 #define CYCLE_COLOURS_SEEN   0x07
 #define SEND_ME_YOUR_DATA    0x08
+#define PROGRAM_BADGE_ID     0x09
 
 // some debugging modes
 #define DEBUG_TURN_OFF_DISPLAY 0b00000001
