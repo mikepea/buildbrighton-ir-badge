@@ -1,3 +1,5 @@
+//
+
 // chip specifics
 // tiny45
 #define EEPROM_SIZE 256
@@ -9,7 +11,13 @@
 
 #define MY_CODE_HEADER  (long)(OUR_COMMON_CODE)<<24 | (long)(my_id) <<16
 
+// how many badges do we keep an record of, for calculating "i've seen you recently"
+#define BADGE_BUFFER_SIZE 20
+// and how long before we say, 'ok, seen you again'
+#define BADGE_LAST_SEEN_MAX 30
+
 // debugging flags
+//#define TURN_OFF_COLOUR_DISPLAY 1
 //#define TURN_OFF_PWM_COLOUR 1
 //#define DISABLE_IR_SENDING_CODE 1
 //#define DISABLE_EEPROM_SENDING_CODE 1
@@ -181,4 +189,11 @@ static volatile struct {
   unsigned long ircode ;   // IR code
   unsigned long irbuf[MAXBUF] ;    // circular buffer for IR codes
 } irparams ;
+
+// state machine variables irparams
+typedef struct badge_record {
+  //char badge_id ;
+  uint8_t badge_id ;
+  int     first_seen ;
+} badge_record_t;
 

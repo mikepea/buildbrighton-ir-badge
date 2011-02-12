@@ -12,28 +12,31 @@
  *
  */
 
-#include "badge.h"
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
+
+#include "badge.h"
 
 uint8_t last_eeprom_read = 1;
 uint8_t curr_colour = 0;
 uint8_t curr_r = 0;
 uint8_t curr_g = 0;
 uint8_t curr_b = 0;
-//uint8_t my_mode = CYCLE_COLOURS_SEEN;
 uint8_t my_id = 0xff;
 uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
 uint8_t rgb_colours[3] = { 1, 81, 161 }; // curr_colour values for R, G, and B.
+uint8_t buffer_count = 0;
 
 // counts 'ticks' (kinda-seconds) of main loop
-int     main_loop_counter = 0;
+unsigned int     main_loop_counter = 0;
 
 uint8_t bit_by_zombie_count = 0;
 int     time_infected = 0;
+
+badge_record_t global_badge_buffer[BADGE_BUFFER_SIZE];
 
 void delay_ten_us(unsigned int us) {
   unsigned int count;
@@ -84,6 +87,7 @@ void enableIROut(void) {
 
 void display_colour(uint8_t tick) {
 
+#ifndef TURN_OFF_COLOUR_DISPLAY
 #ifndef TURN_OFF_PWM_COLOUR
     if ((curr_r > tick) && ( tick % 10 == 0) ) {
         PORTB &= ~redMask; // turn on
@@ -123,6 +127,7 @@ void display_colour(uint8_t tick) {
         PORTB |= bluMask;
     }
 
+#endif
 #endif
 }
 
@@ -420,7 +425,7 @@ void flash_byte(uint8_t data) {
 #endif
 }
 
-void record_id_to_eeprom(uint8_t id) {
+void update_recd_id_in_eeprom(uint8_t id) {
     // have we seen them before?
     // if not, record that we have
     uint8_t times_seen = eeprom_read_byte((uint8_t*)id);
@@ -429,7 +434,36 @@ void record_id_to_eeprom(uint8_t id) {
         eeprom_write_byte((uint8_t*)id, 1);
     } else if (times_seen < 254 ) {
         eeprom_write_byte((uint8_t*)id, times_seen + 1);
-    } // otherwise seen max (254) times
+    } // otherwise seen max (254) times, leave at that.
+}
+
+uint8_t have_not_seen_id_recently(uint8_t recd_id) {
+    for ( uint8_t i=0; i<BADGE_BUFFER_SIZE; i++ ) {
+        if ( global_badge_buffer[i].badge_id == recd_id ) {
+            if ( global_badge_buffer[i].first_seen + BADGE_LAST_SEEN_MAX > main_loop_counter ) {
+                //FLASH_RED;
+                // have seen it recently
+                return 0;
+            } else {
+                // blank that we've seen the badge, otherwise we'll get duplicates
+                // in the buffer
+                global_badge_buffer[i].badge_id = 0;
+                global_badge_buffer[i].first_seen = 0;
+                //FLASH_GREEN;
+            }
+        }
+    }
+    //FLASH_BLUE;
+    return 1;
+}
+
+void record_that_we_have_seen_badge(uint8_t id) {
+    if ( have_not_seen_id_recently(id) ) {
+        global_badge_buffer[buffer_count].badge_id = id;
+        global_badge_buffer[buffer_count].first_seen = main_loop_counter;
+        update_recd_id_in_eeprom(id);
+        buffer_count = ( buffer_count + 1 ) % BADGE_BUFFER_SIZE;
+    }
 }
 
 void process_badge_message(unsigned long code) {
@@ -438,10 +472,20 @@ void process_badge_message(unsigned long code) {
     //
     uint8_t recd_id = (code & ID_MASK) >> 16;
 
-    record_id_to_eeprom(recd_id);
+    if (recd_id == 0x0 || recd_id == 0xff ) {
+        // not badge ids, ignore.
+        return;
+    }
+
 #ifdef DEBUG_DISPLAY_DATA_RECEIVED
     flash_byte(recd_id);
 #endif
+
+    // TODO: only update to eeprom if we have not 
+    //       seen the badge for a while
+    if ( have_not_seen_id_recently(recd_id) ) {
+        record_that_we_have_seen_badge(recd_id);
+    }
 
     // what mode are they in?
     uint8_t recd_mode = (code & MODE_MASK) >> 8;
@@ -452,6 +496,10 @@ void process_badge_message(unsigned long code) {
 
     // what data did they send me?
     uint8_t recd_data = (code & DATA_MASK);
+
+    if (my_mode == INIT_MODE && recd_mode != PROGRAM_BADGE_ID ) {
+        return;
+    }
 
     if (recd_mode == AM_ZOMBIE) {
         // eek
@@ -593,6 +641,14 @@ void update_my_state(int counter) {
 
 }
 
+void pre_loop_setup() {
+    // initialise our globals
+    for (uint8_t i=0; i<BADGE_BUFFER_SIZE; i++) {
+        global_badge_buffer[i].badge_id = 0;
+        global_badge_buffer[i].first_seen = 0;
+    }
+}
+
 int main(void) {
 
     // zero our timer controls, for now
@@ -613,6 +669,8 @@ int main(void) {
     sei();                // enable microcontroller interrupts
 
     long my_code = 0;
+
+    pre_loop_setup();
 
     while (1) {
 
