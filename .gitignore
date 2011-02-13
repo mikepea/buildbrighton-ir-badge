@@ -9,3 +9,4 @@ badge
 timer_test
 38khz_pwm_code
 contrib/hsv_test
+contrib/arduino_downloader/bbadge_arduino_downloader/applet
