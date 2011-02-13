@@ -140,28 +140,20 @@ void sendNEC(unsigned long data)
 
     uint8_t t = 0; // count of 50us marks
 
-    display_colour(t);
     mark(NEC_HDR_MARK);
-    display_colour(t+=180);
     space(NEC_HDR_SPACE);
-    display_colour(t+=90);
 
     for (uint8_t i = 0; i < 32; i++) {
         if (data & 1) {
             mark(NEC_BIT_MARK);
-            display_colour(t+=11);
             space(NEC_ONE_SPACE);
-            display_colour(t+=11);
         } else {
             mark(NEC_BIT_MARK);
-            display_colour(t+=11);
             space(NEC_ZERO_SPACE);
-            display_colour(t+=33);
         }
         data >>= 1;
     }
     mark(NEC_BIT_MARK);
-    display_colour(t+=11);
     space(0);
 #endif
 }
