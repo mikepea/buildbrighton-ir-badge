@@ -493,6 +493,11 @@ void process_badge_message(unsigned long code) {
         return;
     }
 
+    if (my_mode == REFLECT_COLOUR ) {
+        curr_colour = recd_data;
+        return;
+    }
+
     if (recd_mode == AM_ZOMBIE) {
         // eek
         if ( bit_by_zombie_count > BITTEN_MAX ) {
@@ -537,6 +542,15 @@ void check_all_ir_buffers_for_data(void) {
             if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
                 // display our current id (by flashing binary blue/red on LED)
                 flash_byte(my_id);
+
+            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_NEXT_TRACK ) {
+                // turn'em off, n sync-ish em up.
+                my_mode = REFLECT_COLOUR;
+
+            } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_UP ) {
+                // turn'em off, n sync-ish em up.
+                my_mode = CYCLE_COLOURS_SEEN;
+                curr_colour = 0;
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
                 // turn'em off, n sync-ish em up.

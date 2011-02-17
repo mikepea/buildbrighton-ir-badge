@@ -7,7 +7,8 @@ F_CPU = 8000000   	# 8 MHz
 #AVRDUDE_PROGRAMMER = usbtiny
 AVRDUDE_PROGRAMMER = stk500v2
 
-AVRDUDE_PORT =  /dev/cu.usbmodemfa221	# programmer connected to USB
+#AVRDUDE_PORT =  /dev/cu.usbmodemfa221	# programmer connected to USB
+AVRDUDE_PORT =  /dev/cu.usbmodemfd121	# programmer connected to USB
 
 # Default target.
 
@@ -30,7 +31,7 @@ eeprom-write:
 	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 5 -U eeprom:w:eeprom_sets/eeprom_write.hex:i
 
 program-badge-id: program-badge
-	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 5 -U eeprom:w:$(MY_ID):m
+	$(AVRDUDE) $(AVRDUDE_FLAGS) -B 10 -U eeprom:w:$(MY_ID):m
 
 # this programs the dependant hex file using our default avrdude flags
 program-%:
