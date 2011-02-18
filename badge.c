@@ -29,6 +29,7 @@ uint8_t my_mode = INIT_MODE;
 uint8_t debug_modes = 0x00;
 uint8_t rgb_colours[3] = { 1, 81, 161 }; // curr_colour values for R, G, and B.
 uint8_t buffer_count = 0;
+uint8_t factory_reset_keycombo_count = 0;
 
 // counts 'ticks' (kinda-seconds) of main loop
 unsigned int     main_loop_counter = 0;
@@ -549,17 +550,34 @@ void check_all_ir_buffers_for_data(void) {
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_UP ) {
                 // turn'em off, n sync-ish em up.
-                my_mode = CYCLE_COLOURS_SEEN;
-                curr_colour = 0;
+                if ( factory_reset_keycombo_count == 3 ) { 
+                    FLASH_RED;
+                    factory_reset_keycombo_count++;
+                } else {
+                    my_mode = CYCLE_COLOURS_SEEN;
+                    curr_colour = 0;
+                }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
                 // turn'em off, n sync-ish em up.
-                my_mode = CYCLE_COLOURS_SEEN;
-                curr_colour = 0;
+                if ( factory_reset_keycombo_count == 2 ) { 
+                    FLASH_RED;
+                    factory_reset_keycombo_count++;
+                } else {
+                    my_mode = CYCLE_COLOURS_SEEN;
+                    curr_colour = 0;
+                }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PLAY ) {
                 // zombie 'em up
-                my_mode = AM_INFECTED;
+                if ( factory_reset_keycombo_count == 0 
+                        || factory_reset_keycombo_count == 1 
+                        || factory_reset_keycombo_count == 4 ) {
+                    FLASH_RED;
+                    factory_reset_keycombo_count++;
+                } else {
+                    my_mode = AM_INFECTED;
+                }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
                 // go into data transfer mode - IR all known info to a receiving station
@@ -605,7 +623,20 @@ uint8_t get_next_colour() {
 
 }
 
+void factory_reset(void) {
+    for (uint8_t i=0; i<1; i++) { 
+        eeprom_write_byte((uint8_t*)i, 0xff); // ensure we're in our own colour db
+        my_mode = INIT_MODE;
+    }
+}
+
 void update_my_state(int counter) {
+
+    if ( factory_reset_keycombo_count == 5 ) {
+        // magic keycombo hit. Reset!
+        factory_reset();
+        return;
+    }
 
     if ( my_mode == AM_INFECTED ) {
         // yikes. 
@@ -679,6 +710,12 @@ int main(void) {
     pre_loop_setup();
 
     while (1) {
+
+        if ( main_loop_counter % 5 == 0 ) {
+            // every 5 cycles, reset the keycombo-ometer, so
+            // we don't accidentally enable it.
+            factory_reset_keycombo_count = 0;
+        }
 
         disable_ir_recving();
         enableIROut();
