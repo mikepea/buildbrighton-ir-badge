@@ -46,7 +46,7 @@
 
 // Zombie game
 #define BITTEN_MAX         3
-#define MAX_TIME_INFECTED  60
+#define MAX_TIME_INFECTED  15
 #define MAX_TIME_DEAD      15
 
 // Apple codes (device id is first byte, mine is 5c)
@@ -175,6 +175,8 @@
 
 // for RGB PWM in interrupt
 volatile unsigned char rgb_tick = 0;
+volatile unsigned char ten_ms_ticks = 0;
+volatile unsigned char hundr_ms_ticks = 0;
 
 // state machine variables irparams
 static volatile struct {

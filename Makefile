@@ -8,7 +8,9 @@ F_CPU = 8000000   	# 8 MHz
 AVRDUDE_PROGRAMMER = stk500v2
 
 #AVRDUDE_PORT =  /dev/cu.usbmodemfa221	# programmer connected to USB
-AVRDUDE_PORT =  /dev/cu.usbmodemfd121	# programmer connected to USB
+#AVRDUDE_PORT =  /dev/cu.usbmodemfd121	# programmer connected to USB
+#AVRDUDE_PORT =  /dev/cu.usbmodem1a21	# programmer connected to USB
+AVRDUDE_PORT =  /dev/cu.usbmodem1d11	# programmer connected to USB
 
 # Default target.
 

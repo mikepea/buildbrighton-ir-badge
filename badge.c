@@ -20,6 +20,7 @@
 #include "badge.h"
 
 uint8_t last_eeprom_read = 1;
+uint8_t enable_rgb_led = 1;
 uint8_t curr_colour = 0;
 uint8_t curr_r = 0;
 uint8_t curr_g = 0;
@@ -88,15 +89,16 @@ void enableIROut(void) {
 
 void display_colour(uint8_t tick) {
 
+  if ( enable_rgb_led ) {
 #ifndef TURN_OFF_COLOUR_DISPLAY
 #ifndef TURN_OFF_PWM_COLOUR
-    if ((curr_r > tick) && ( tick % 10 == 0) ) {
+    if ((curr_r > tick) && ( tick % 5 == 0) ) {
         PORTB &= ~redMask; // turn on
     } else {
         PORTB |= redMask;
     }
 
-    if ((curr_g > tick) && ( tick % 2 == 0)) {
+    if ((curr_g > tick) && ( tick % 5 == 0)) {
         PORTB &= ~grnMask; // turn on
     } else {
         PORTB |= grnMask;
@@ -123,13 +125,13 @@ void display_colour(uint8_t tick) {
 
     if (curr_b == 255) {
         PORTB &= ~bluMask; // turn on
-    }
-    else {
+    } else {
         PORTB |= bluMask;
     }
+#endif
+#endif
+  }
 
-#endif
-#endif
 }
 
 
@@ -546,6 +548,7 @@ void check_all_ir_buffers_for_data(void) {
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_NEXT_TRACK ) {
                 // turn'em off, n sync-ish em up.
+                enable_rgb_led = 1;
                 my_mode = REFLECT_COLOUR;
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_UP ) {
@@ -554,18 +557,23 @@ void check_all_ir_buffers_for_data(void) {
                     FLASH_RED;
                     factory_reset_keycombo_count++;
                 } else {
-                    my_mode = CYCLE_COLOURS_SEEN;
-                    curr_colour = 0;
+                    // toggle whether to display colours
+                    factory_reset_keycombo_count = 0;
+                    enable_rgb_led = enable_rgb_led ? 0 : 1;
                 }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_VOLUME_DOWN ) {
                 // turn'em off, n sync-ish em up.
                 if ( factory_reset_keycombo_count == 2 ) { 
+                    enable_rgb_led = 0;
                     FLASH_RED;
                     factory_reset_keycombo_count++;
                 } else {
+                    FLASH_GREEN;
+                    enable_rgb_led = 1;
                     my_mode = CYCLE_COLOURS_SEEN;
                     curr_colour = 0;
+                    factory_reset_keycombo_count = 0;
                 }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PLAY ) {
@@ -573,15 +581,19 @@ void check_all_ir_buffers_for_data(void) {
                 if ( factory_reset_keycombo_count == 0 
                         || factory_reset_keycombo_count == 1 
                         || factory_reset_keycombo_count == 4 ) {
+                    enable_rgb_led = 0;
                     FLASH_RED;
                     factory_reset_keycombo_count++;
                 } else {
                     my_mode = AM_INFECTED;
+                    enable_rgb_led = 1;
+                    factory_reset_keycombo_count = 0;
                 }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_MENU ) {
                 // go into data transfer mode - IR all known info to a receiving station
                 my_mode = SEND_ALL_EEPROM;
+                factory_reset_keycombo_count = 0;
 
             } else if ( (IRBUF_CUR & COMMON_CODE_MASK) == (long)(OUR_COMMON_CODE)<<24) {
                 process_badge_message(IRBUF_CUR);
@@ -627,6 +639,7 @@ void factory_reset(void) {
     for (uint8_t i=0; i<1; i++) { 
         eeprom_write_byte((uint8_t*)i, 0xff); // ensure we're in our own colour db
         my_mode = INIT_MODE;
+        enable_rgb_led = 1;
     }
 }
 
@@ -635,6 +648,7 @@ void update_my_state(int counter) {
     if ( factory_reset_keycombo_count == 5 ) {
         // magic keycombo hit. Reset!
         factory_reset();
+        factory_reset_keycombo_count = 0;
         return;
     }
 
@@ -711,8 +725,8 @@ int main(void) {
 
     while (1) {
 
-        if ( main_loop_counter % 5 == 0 ) {
-            // every 5 cycles, reset the keycombo-ometer, so
+        if ( main_loop_counter % 30 == 0 ) {
+            // every n cycles, reset the keycombo-ometer, so
             // we don't accidentally enable it.
             factory_reset_keycombo_count = 0;
         }
