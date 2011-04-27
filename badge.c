@@ -18,6 +18,7 @@
 #include <avr/eeprom.h>
 
 #include "badge.h"
+//#include "trippyrgb.h"
 
 uint8_t last_eeprom_read = 1;
 uint8_t enable_rgb_led = 1;
@@ -64,7 +65,11 @@ void disable_ir_recving(void) {
 void mark(int time) {
   // Sends an IR mark for the specified number of microseconds.
   // The mark output is modulated at the PWM frequency.
+#ifdef TRIPPY_RGB_WAVE
+  GTCCR |= _BV(COM0A0);  // turn on OC0A PWM output
+#else
   GTCCR |= _BV(COM1B0);  // turn on OC1B PWM output
+#endif
   delay_ten_us(time / 10);
 }
 
@@ -72,18 +77,36 @@ void mark(int time) {
 void space(int time) {
   // Sends an IR space for the specified number of microseconds.
   // A space is no output, so the PWM output is disabled.
-  GTCCR &= ~(_BV(COM1B0));  // turn on OC1B PWM output
+#ifdef TRIPPY_RGB_WAVE
+  GTCCR &= ~(_BV(COM0A0));  // turn off OC0A PWM output
+#else
+  GTCCR &= ~(_BV(COM1B0));  // turn off OC1B PWM output
+#endif
   delay_ten_us(time / 10);
 }
 
 void enableIROut(void) {
 
+#ifdef TRIPPY_RGB_WAVE
+  TCCR0A = 0b01000010;  // COM0A1:0=01 to toggle OC0A on Compare Match
+                            // COM0B1:0=00 to disconnect OC0B
+                            // bits 3:2 are unused
+                            // WGM01:00=10 for CTC Mode (WGM02=0 in TCCR0B)
+  TCCR0B = 0b00000001;  // FOC0A=0 (no force compare)
+                              // F0C0B=0 (no force compare)
+                              // bits 5:4 are unused
+                              // WGM2=0 for CTC Mode (WGM01:00=10 in TCCR0A)
+                              // CS02:00=001 for divide by 1 prescaler (this starts Timer0)
+  OCR0A = 104;  // to output 38,095.2KHz on OC0A (PB0, pin 5)
+
+#else
   TCCR1 = _BV(CS10);  // turn on clock, prescale = 1
   GTCCR = _BV(PWM1B) | _BV(COM1B0);  // toggle OC1B on compare match; PWM mode on OCR1C/B.
-
-  // these two values give 38khz PWM on IR LED, with 33%ish duty cycle
+  // these two values give 38khz PWM on IR LED (OC1B == PB4 == pin3),
+  // with 33%ish duty cycle
   OCR1C = 210;
   OCR1B = 70;
+#endif
 
 }
 
