@@ -567,7 +567,12 @@ void check_all_ir_buffers_for_data(void) {
 
             if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_PREV_TRACK ) {
                 // display our current id (by flashing binary blue/red on LED)
-                flash_byte(my_id);
+		if ( my_mode == INIT_MODE ) {
+	            eeprom_write_byte((uint8_t*)0, curr_colour);
+		    FLASH_GREEN;
+		} else {
+		    flash_byte(my_id);
+                }
 
             } else if ( ( IRBUF_CUR & ~COMMON_CODE_MASK ) == APPLE_NEXT_TRACK ) {
                 // turn'em off, n sync-ish em up.
@@ -610,6 +615,7 @@ void check_all_ir_buffers_for_data(void) {
                 } else {
                     my_mode = AM_INFECTED;
                     enable_rgb_led = 1;
+                    time_infected = main_loop_counter;
                     factory_reset_keycombo_count = 0;
                 }
 
@@ -677,7 +683,8 @@ void update_my_state(int counter) {
 
     if ( my_mode == AM_INFECTED ) {
         // yikes. 
-        curr_colour = ( main_loop_counter % 2 ) ? 0 : 81;
+        //curr_colour = ( main_loop_counter % 2 ) ? 0 : 81;
+        curr_colour = ( main_loop_counter % 2 ) ? 1 : 81;
         if ( (main_loop_counter - time_infected) > MAX_TIME_INFECTED ) {
             // you die
             my_mode = AM_ZOMBIE;
@@ -686,7 +693,7 @@ void update_my_state(int counter) {
     } else if ( my_mode == AM_ZOMBIE ) {
         // hnnnngggg... brains...
         //
-        curr_colour = ( main_loop_counter % 3 ) ? 0 : 1;
+        curr_colour = ( main_loop_counter % 2 ) ? 0 : 1;
 
     } else if ( my_mode == CYCLE_COLOURS_SEEN ) {
         curr_colour = get_next_colour();
@@ -700,8 +707,8 @@ void update_my_state(int counter) {
             eeprom_write_byte((uint8_t*) my_id, 1); // ensure we're in our own colour db
             my_mode = CYCLE_COLOURS_SEEN;
         } else {
-            // cycle red, green, blue: so we can double check RGB LED is soldered correctly.
-            curr_colour = rgb_colours[main_loop_counter % 3];
+	    // display a bunch of colours, so we can select one
+            curr_colour = (curr_colour + 1) % 240;
         }
     }
 
@@ -710,7 +717,9 @@ void update_my_state(int counter) {
         // converts to RGB 0x0 - & LEDs off.
         HSVtoRGB(&curr_r, &curr_g, &curr_b, 0, 0, 0);
     } else {
-        HSVtoRGB(&curr_r, &curr_g, &curr_b, (curr_colour - 1), 255, 255);
+	//int v = (16*((counter % 15)+2) - 1); // 32-255 in blocks of 16
+	int v = 255;
+        HSVtoRGB(&curr_r, &curr_g, &curr_b, (curr_colour - 1), 255, v);
     }
 
 }
@@ -756,7 +765,6 @@ int main(void) {
 
         disable_ir_recving();
         enableIROut();
-        //FLASH_BLUE;
 
 #ifndef DISABLE_EEPROM_SENDING_CODE
         if ( my_mode == SEND_ALL_EEPROM ) {
@@ -782,8 +790,6 @@ int main(void) {
         for (uint8_t i=0; i<NUM_SENDS; i++) {
            // transmit our identity, without interruption
            sendNEC(my_code);  // takes ~68ms
-           //delay_ten_us(3280); // delay for 32ms
-           //FLASH_RED;
         }
 #endif
 
@@ -791,13 +797,14 @@ int main(void) {
         enable_ir_recving();
 
         // loop a number of times, to have ~1s of recving/game logic
+        int j = 0;
         for (int i=0; i<730; i++) {
 
             check_all_ir_buffers_for_data();
 
-            //if ( i == 0 ) {
             if ( i % 73 == 0 ) {
-                update_my_state( (i*256/730) );
+                update_my_state(j);
+	        j++;
             }
 
             delay_ten_us(92 + (my_id % 16));  // differ sleep period so devices are less likely to interfere

@@ -21,7 +21,7 @@
 //#define TURN_OFF_PWM_COLOUR 1
 //#define DISABLE_IR_SENDING_CODE 1
 //#define DISABLE_EEPROM_SENDING_CODE 1
-//#define ENABLE_FLASH_BYTE_CODE 1
+#define ENABLE_FLASH_BYTE_CODE 1
 
 // our data packet is OUR_COMMON_CODE << 24 | MY_ID << 16 | mode | data(=0b00{colour})
 #define COMMON_CODE_MASK 0xff000000
@@ -46,8 +46,8 @@
 
 // Zombie game
 #define BITTEN_MAX         3
-#define MAX_TIME_INFECTED  15
-#define MAX_TIME_DEAD      15
+#define MAX_TIME_INFECTED  30
+#define MAX_TIME_DEAD      10
 
 // Apple codes (device id is first byte, mine is 5c)
 #define APPLE_PLAY              0x000487ee

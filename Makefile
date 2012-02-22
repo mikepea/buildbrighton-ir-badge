@@ -13,7 +13,7 @@ AVRDUDE_PROGRAMMER = stk500v2
 #AVRDUDE_PORT =  /dev/cu.usbmodem1a21	# programmer connected to USB
 #AVRDUDE_PORT =  /dev/cu.usbmodem1d11	# programmer connected to USB
 #AVRDUDE_PORT =  /dev/cu.usbmodemfa221	# programmer connected to USB
-AVRDUDE_PORT =  /dev/cu.usbmodemfa131	# programmer connected to USB
+AVRDUDE_PORT =  /dev/cu.usbmodemfd111
 #AVRDUDE_PORT =  usb	# usbtiny
 
 # Default target.
