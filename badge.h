@@ -6,6 +6,8 @@
 // tiny25
 //#define EEPROM_SIZE 128
 
+#define EEPROM_SEND_DELAY 1000
+
 // common code so we know def is a badge
 #define OUR_COMMON_CODE 0xbb
 
@@ -77,9 +79,9 @@
 #define JUST_GREEN_ON    PORTB |= rgbMask; PORTB &= ~(grnMask);
 #define JUST_BLUE_ON     PORTB |= rgbMask; PORTB &= ~(bluMask);
 
-#define FLASH_BLUE      PORTB ^= bluMask; delay_ten_us(100); PORTB ^= bluMask;
-#define FLASH_GREEN     PORTB ^= grnMask; delay_ten_us(100); PORTB ^= grnMask;
-#define FLASH_RED       PORTB ^= redMask; delay_ten_us(100); PORTB ^= redMask;
+#define FLASH_BLUE      PORTB ^= bluMask; delay_ten_us(10000); PORTB ^= bluMask;
+#define FLASH_GREEN     PORTB ^= grnMask; delay_ten_us(10000); PORTB ^= grnMask;
+#define FLASH_RED       PORTB ^= redMask; delay_ten_us(10000); PORTB ^= redMask;
 
 #define RED 0
 #define GREEN 1

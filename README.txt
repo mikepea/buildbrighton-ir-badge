@@ -1,4 +1,24 @@
 
+Using an Apple Remote
+---------------------
+
+Set badge ID (after factory reset, or new badge):
+ - PLAY 
+
+Factory Reset:
+ - PLAY PLAY DOWN UP PLAY
+
+Infect a badge:
+ - PLAY PLAY PLAY
+
+
+
+
+
+
+Random Notes
+------------
+
 38KHz = 1 pulse every 26.315us
 8Mhz  = 1 instruction every 0.125us
  => 8-bit clock has period of 32us

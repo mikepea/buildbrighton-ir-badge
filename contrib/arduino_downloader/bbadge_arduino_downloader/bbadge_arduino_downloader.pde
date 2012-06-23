@@ -9,20 +9,18 @@ decode_results results;
 
 long serial_recd_code;
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 #define PRINT_MODE HEX
 //#define PRINT_MODE BYTE
 
 int loop_count = 0;
 
 void send_code_to_serial(long code) {
-  Serial.print(0x00, PRINT_MODE);
-  Serial.print(0x00, PRINT_MODE);
-  Serial.print(0x00, PRINT_MODE);
-  Serial.print(0x00, PRINT_MODE);
   Serial.print(code, PRINT_MODE);
+  Serial.print(' ');
   Serial.print(~code, PRINT_MODE);
 #ifdef DEBUG_MODE
+  Serial.print(' ');
   Serial.println(code + ~code, HEX);
 #endif
 }
@@ -43,6 +41,9 @@ void send_code_to_ir(long code) {
     Serial.println(code, HEX);
 #endif
     irsend.sendNEC(reverse_code(code), 32);
+    //delay(100);
+    //irsend.sendNEC(code, 32);
+    
     irrecv.enableIRIn(); // send disables recv.
 }
 
@@ -85,6 +86,7 @@ void setup()
 {
   Serial.begin(9600);
   irrecv.enableIRIn(); // Start the receiver 
+  Serial.println("Start");
 }
 
 void loop() {
@@ -92,38 +94,43 @@ void loop() {
   
   int zero_count = 0;
   
-  serial_recd_code = get_code_from_serial();
-  if ( serial_recd_code ) {
-     send_code_to_ir(serial_recd_code);
-  }
+  //serial_recd_code = get_code_from_serial();
+  //if ( serial_recd_code ) {
+  //   send_code_to_ir(serial_recd_code);
+  //}
 
   // if we've got data from IR, spit to serial
-  if (irrecv.decode(&results) && results.decode_type == NEC) {
+  //if (irrecv.decode(&results) && results.decode_type == NEC) {
+  /*
+    if (irrecv.decode(&results) ) {
+    Serial.println("Gots data");
     if (results.value == REPEAT) {
       // Don't record a NEC repeat value as that's useless.
-      //Serial.println("repeat; ignoring.");
+      Serial.println("repeat; ignoring.");
     } else {
-      //Serial.println(reverse_code(results.value), HEX);
+      Serial.println(reverse_code(results.value), HEX);
       // IRremote lib returns the code LSB first, so reverse it.
       send_code_to_serial(reverse_code(results.value));
     }
     irrecv.resume(); // Receive the next value
   }
-
-  if ( loop_count == 500 ) {
+*/
+  if ( loop_count == 200 ) {
     // give badge an ID.
-    //send_code(0xbb5309aa);
-    send_code_to_serial(0xbb5309aa);
+    send_code_to_ir(0xbb5309aa);
+    //send_code_to_serial(0xbb5309aa);
+    Serial.println("Woop;");
   } else if ( loop_count == 1000 ) {
     // get badge to send data
-    send_code_to_serial(0xbb530800);
+    //send_code_to_serial(0xbb530800);
   }
 
   if ( loop_count % 1000 == 0 ) {    
     loop_count = 0;
   }
   
-  delay(10);
+  //send_code_to_ir(0xbb530980);
+  delay(2);
 
 }
 
